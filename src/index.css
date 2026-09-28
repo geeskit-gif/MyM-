@@ -1,0 +1,5 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+* { -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: #F7FBFA; }
