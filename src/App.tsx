@@ -76,10 +76,9 @@ export default function App() {
       const parsed = saved ? JSON.parse(saved) : {};
       return {
         periodo: Boolean(parsed.periodo),
-        pastilla: Boolean(parsed.pastilla),
       };
     } catch {
-      return { periodo: false, pastilla: false };
+      return { periodo: false };
     }
   });
 
@@ -1176,12 +1175,6 @@ export default function App() {
                           })} menos 1 día`
                         : "Aviso de tu próximo periodo",
                       icon: "🩸",
-                    },
-                    {
-                      id: "pastilla",
-                      label: "Pastilla / suplemento",
-                      desc: "Tu recordatorio",
-                      icon: "💊",
                     },
                   ].map((item) => {
                     const active = reminders[item.id];
