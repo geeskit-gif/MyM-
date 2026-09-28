@@ -67,17 +67,22 @@ export default function App() {
   });
 
   const [isMobile, setIsMobile] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
 
   const [reminders, setReminders] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem(REMINDERS_KEY);
-      return saved
-        ? JSON.parse(saved)
-        : { agua: false, pastilla: false, sueno: false };
+      const parsed = saved ? JSON.parse(saved) : {};
+      return {
+        periodo: Boolean(parsed.periodo),
+        pastilla: Boolean(parsed.pastilla),
+      };
     } catch {
-      return { agua: false, pastilla: false, sueno: false };
+      return { periodo: false, pastilla: false };
     }
   });
+
+  const [notificationMessage, setNotificationMessage] = useState("");
 
   const [name, setName] = useState("");
   const [lastPeriod, setLastPeriod] = useState(dateToInput(today));
@@ -91,6 +96,25 @@ export default function App() {
     window.addEventListener("resize", check);
 
     return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as any);
+    };
+
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
   }, []);
 
   useEffect(() => {
@@ -214,16 +238,6 @@ export default function App() {
     setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
   };
 
-  const toggleReminder = (id: string) => {
-    const next = {
-      ...reminders,
-      [id]: !reminders[id],
-    };
-
-    setReminders(next);
-    localStorage.setItem(REMINDERS_KEY, JSON.stringify(next));
-  };
-
   const changeMonth = (delta: number) => {
     setViewDate(
       new Date(viewDate.getFullYear(), viewDate.getMonth() + delta, 1)
@@ -277,6 +291,139 @@ export default function App() {
   const daysUntilNextPeriod = nextPeriodDate
     ? daysBetween(nextPeriodDate, today)
     : 0;
+
+  const showPeriodNotification = async () => {
+    if (!("Notification" in window)) {
+      setNotificationMessage("Este dispositivo no admite notificaciones web.");
+      return false;
+    }
+
+    if (Notification.permission !== "granted") {
+      setNotificationMessage("Activa las notificaciones del navegador para recibir el aviso.");
+      return false;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification("🩸 MyM", {
+        body: "Tu periodo podría comenzar mañana.",
+        icon: "./icons/icon-192.png",
+        badge: "./icons/icon-192.png",
+        tag: "mym-period-reminder",
+      });
+      return true;
+    } catch {
+      setNotificationMessage("No pudimos mostrar el aviso en este momento.");
+      return false;
+    }
+  };
+
+  const toggleReminder = async (id: string) => {
+    if (id === "periodo") {
+      const willEnable = !reminders.periodo;
+
+      if (willEnable) {
+        if (!("Notification" in window)) {
+          setNotificationMessage("Este dispositivo no admite notificaciones web.");
+          return;
+        }
+
+        if (Notification.permission !== "granted") {
+          const permission = await Notification.requestPermission();
+
+          if (permission !== "granted") {
+            setNotificationMessage("Sin permiso, MyM no podrá avisarte.");
+            return;
+          }
+        }
+
+        setNotificationMessage("Aviso de periodo activado.");
+      } else {
+        setNotificationMessage("Aviso de periodo desactivado.");
+      }
+    }
+
+    const next = {
+      ...reminders,
+      [id]: !reminders[id],
+    };
+
+    setReminders(next);
+    localStorage.setItem(REMINDERS_KEY, JSON.stringify(next));
+  };
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+
+    const promptEvent = installPrompt;
+    setInstallPrompt(null);
+
+    try {
+      await promptEvent.prompt();
+      await promptEvent.userChoice;
+    } catch {
+      // The browser controls the installation UI.
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !profile ||
+      !reminders.periodo ||
+      !nextPeriodDate ||
+      !("Notification" in window) ||
+      Notification.permission !== "granted" ||
+      !("serviceWorker" in navigator)
+    ) {
+      return;
+    }
+
+    const reminderDate = new Date(nextPeriodDate);
+    reminderDate.setDate(reminderDate.getDate() - 1);
+    reminderDate.setHours(9, 0, 0, 0);
+
+    const notificationKey = `mym-period-notified-${dateToInput(nextPeriodDate)}`;
+    const alreadyNotified = localStorage.getItem(notificationKey) === "1";
+
+    if (alreadyNotified) return;
+
+    const notify = async () => {
+      const shown = await showPeriodNotification();
+
+      if (shown) {
+        localStorage.setItem(notificationKey, "1");
+      }
+    };
+
+    const delay = reminderDate.getTime() - Date.now();
+
+    if (delay <= 0 && isSameDay(today, reminderDate)) {
+      void notify();
+      return;
+    }
+
+    if (delay <= 0) return;
+
+    const MAX_TIMER = 2147483647;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const schedule = (remaining: number) => {
+      timer = setTimeout(() => {
+        if (remaining > MAX_TIMER) {
+          schedule(remaining - MAX_TIMER);
+        } else {
+          void notify();
+        }
+      }, Math.min(remaining, MAX_TIMER));
+    };
+
+    schedule(delay);
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [profile, reminders.periodo, nextPeriodDate, today]);
+
 
   const handleToggleTheme = () => {
     setIsDark((value) => !value);
@@ -729,21 +876,42 @@ export default function App() {
             </div>
           </div>
 
-          <button
-            onClick={handleToggleTheme}
-            aria-label="Cambiar tema"
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              border: `1px solid ${theme.border}`,
-              background: theme.card,
-              color: theme.text,
-              cursor: "pointer",
-            }}
-          >
-            {isDark ? "☀️" : "🌙"}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {installPrompt && (
+              <button
+                onClick={handleInstall}
+                style={{
+                  height: 38,
+                  padding: "0 12px",
+                  borderRadius: 12,
+                  border: `1px solid ${theme.border}`,
+                  background: theme.card,
+                  color: theme.text,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Instalar
+              </button>
+            )}
+
+            <button
+              onClick={handleToggleTheme}
+              aria-label="Cambiar tema"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                border: `1px solid ${theme.border}`,
+                background: theme.card,
+                color: theme.text,
+                cursor: "pointer",
+              }}
+            >
+              {isDark ? "☀️" : "🌙"}
+            </button>
+          </div>
         </header>
 
         <nav
@@ -1038,22 +1206,21 @@ export default function App() {
                 <div style={{ display: "grid", gap: 9 }}>
                   {[
                     {
-                      id: "agua",
-                      label: "Beber agua",
-                      desc: "Recordatorio diario",
-                      icon: "💧",
+                      id: "periodo",
+                      label: "Avisarme 1 día antes de mi periodo",
+                      desc: nextPeriodDate
+                        ? `Próximo aviso: ${nextPeriodDate.toLocaleDateString("es-ES", {
+                            day: "numeric",
+                            month: "long",
+                          })} menos 1 día`
+                        : "Aviso de tu próximo periodo",
+                      icon: "🩸",
                     },
                     {
                       id: "pastilla",
                       label: "Pastilla / suplemento",
                       desc: "Tu recordatorio",
                       icon: "💊",
-                    },
-                    {
-                      id: "sueno",
-                      label: "Sueño",
-                      desc: "Cuidar tus horas de descanso",
-                      icon: "🌙",
                     },
                   ].map((item) => {
                     const active = reminders[item.id];
@@ -1132,6 +1299,19 @@ export default function App() {
                     );
                   })}
                 </div>
+
+                {notificationMessage && (
+                  <p
+                    style={{
+                      margin: "10px 4px 0",
+                      fontSize: 10,
+                      lineHeight: 1.5,
+                      color: theme.muted,
+                    }}
+                  >
+                    {notificationMessage}
+                  </p>
+                )}
               </div>
 
               <button
