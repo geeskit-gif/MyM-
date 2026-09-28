@@ -7,7 +7,7 @@ export default function App() {
   const [viewDate, setViewDate] = useState<Date>(() => new Date(2026, 8, 1));
   const [today] = useState<Date>(() => new Date());
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [reminders, setReminders] = useState({ agua: true, pastilla: false, sueno: true });
+  const [reminders, setReminders] = useState(() => {\n    try {\n      const saved = localStorage.getItem("mym-reminders");\n      return saved ? JSON.parse(saved) : { agua: false, pastilla: false, sueno: false };\n    } catch {\n      return { agua: false, pastilla: false, sueno: false };\n    }\n  });\n  const [periodStart, setPeriodStart] = useState<Date | null>(() => {\n    const saved = localStorage.getItem("mym-period-start");\n    return saved ? new Date(saved) : null;\n  });
 
   // theme init
   useEffect(() => {
@@ -81,7 +81,7 @@ export default function App() {
   const basePeriodStart = useMemo(() => new Date(2026, 7, 15), []);
 
   const getDayType = (date: Date) => {
-    const diffTime = date.getTime() - basePeriodStart.getTime();
+    if (!basePeriodStart) return "normal";\n    const diffTime = date.getTime() - basePeriodStart.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     // handle negative modulo
     const cyclePos = ((diffDays % 28) + 28) % 28;
@@ -119,7 +119,7 @@ export default function App() {
   }, [viewDate]);
 
   const cycleDayForToday = useMemo(() => {
-    const diff = Math.floor((today.getTime() - basePeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+    if (!basePeriodStart) return 0;\n    const diff = Math.floor((today.getTime() - basePeriodStart.getTime()) / (1000 * 60 * 60 * 24));
     const pos = ((diff % 28) + 28) % 28;
     return pos + 1;
   }, [today, basePeriodStart]);
@@ -136,7 +136,7 @@ export default function App() {
     return cells;
   }, [startWeekDay, daysInMonth, viewDate]);
 
-  const handleToggleTheme = () => {
+  const registerPeriod = () => {\n    const start = new Date();\n    setPeriodStart(start);\n    localStorage.setItem("mym-period-start", start.toISOString());\n  };\n\n  const handleToggleTheme = () => {
     const next = !isDark;
     setIsDark(next);
     localStorage.setItem("mym-theme", next ? "dark" : "light");
@@ -241,7 +241,47 @@ export default function App() {
 
         {/* Main content */}
         <div className="mt-5">
-          {tab === "calendario" && (
+          {tab === "calendario" && !periodStart && (
+            <div
+              style={{
+                borderRadius: 24,
+                backgroundColor: theme.card,
+                border: `1px solid ${theme.border}`,
+                padding: 28,
+                minHeight: 420,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.35)" : "0 12px 32px rgba(36,54,56,0.08)",
+              }}
+            >
+              <img src={logoImg} alt="MyM logo" style={{ width: 72, height: 72, objectFit: "contain", marginBottom: 18 }} />
+              <h2 className="fraunces" style={{ fontSize: 24 }}>Comienza tu ciclo</h2>
+              <p style={{ fontSize: 14, opacity: 0.65, maxWidth: 300, lineHeight: 1.6, marginTop: 8 }}>
+                Registra el primer día de tu periodo para empezar a llevar tu calendario.
+              </p>
+              <button
+                onClick={registerPeriod}
+                style={{
+                  marginTop: 22,
+                  padding: "12px 22px",
+                  borderRadius: 999,
+                  border: "none",
+                  backgroundColor: "#72C8D0",
+                  color: "#0F1A1B",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Registrar mi periodo
+              </button>
+            </div>
+          )}
+
+          {tab === "calendario" && periodStart && (
             <div
               style={{
                 position: "relative",
@@ -458,7 +498,45 @@ export default function App() {
             </div>
           )}
 
-          {tab === "hoy" && (
+          {tab === "hoy" && !periodStart && (
+            <div
+              style={{
+                borderRadius: 24,
+                backgroundColor: theme.card,
+                border: `1px solid ${theme.border}`,
+                padding: 28,
+                minHeight: 320,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+              }}
+            >
+              <h3 className="fraunces" style={{ fontSize: 22 }}>Aún no hay registros</h3>
+              <p style={{ fontSize: 13, opacity: 0.65, maxWidth: 280, lineHeight: 1.5, marginTop: 8 }}>
+                Registra tu primer periodo desde Calendario para comenzar.
+              </p>
+              <button
+                onClick={() => setTab("calendario")}
+                style={{
+                  marginTop: 20,
+                  padding: "11px 20px",
+                  borderRadius: 999,
+                  border: "none",
+                  backgroundColor: "#72C8D0",
+                  color: "#0F1A1B",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Ir a Calendario
+              </button>
+            </div>
+          )}
+
+          {tab === "hoy" && periodStart && (
             <div
               style={{
                 position: "relative",
@@ -565,7 +643,7 @@ export default function App() {
                           </div>
                         </div>
                         <button
-                          onClick={() => setReminders((p) => ({ ...p, [r.id]: !active }))}
+                          onClick={() => { const next = { ...reminders, [r.id]: !active }; setReminders(next); localStorage.setItem("mym-reminders", JSON.stringify(next)); }}
                           style={{
                             width: 44,
                             height: 26,
@@ -599,7 +677,30 @@ export default function App() {
             </div>
           )}
 
-          {tab === "historial" && (
+          {tab === "historial" && !periodStart && (
+            <div
+              style={{
+                borderRadius: 24,
+                backgroundColor: theme.card,
+                border: `1px solid ${theme.border}`,
+                padding: 28,
+                minHeight: 320,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: 34, opacity: 0.55, marginBottom: 14 }}>♡</div>
+              <h3 className="fraunces" style={{ fontSize: 20 }}>Tu historial aparecerá aquí</h3>
+              <p style={{ fontSize: 13, opacity: 0.6, marginTop: 8, maxWidth: 280, lineHeight: 1.5 }}>
+                Cuando registres tu primer periodo, MyM comenzará a guardar tus ciclos en este dispositivo.
+              </p>
+            </div>
+          )}
+
+          {tab === "historial" && periodStart && (
             <div
               style={{
                 borderRadius: 24,
