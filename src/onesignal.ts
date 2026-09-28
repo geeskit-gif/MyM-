@@ -21,7 +21,7 @@ export function initOneSignal() {
         appId: ONESIGNAL_APP_ID,
         serviceWorkerPath: "MyM-/OneSignalSDKWorker.js",
         serviceWorkerParam: {
-          scope: "/MyM/",
+          scope: "/MyM-/",
         },
       });
       resolve(OneSignal);
