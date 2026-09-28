@@ -16,11 +16,11 @@ export default defineConfig({
         theme_color: '#72C8D0',
         background_color: '#F7FBFA',
         display: 'standalone',
-        start_url: '/',
+        start_url: '/MyM-/',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          { src: '/MyM-/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/MyM-/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/MyM-/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
       workbox: {
