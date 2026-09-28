@@ -19,7 +19,7 @@ export function initOneSignal() {
     window.OneSignalDeferred!.push(async (OneSignal) => {
       await OneSignal.init({
         appId: ONESIGNAL_APP_ID,
-        serviceWorkerPath: "MyM-/OneSignalSDKWorker.js",
+        serviceWorkerPath: "/MyM-/OneSignalSDKWorker.js",
         serviceWorkerParam: {
           scope: "/MyM-/",
         },
