@@ -3,6 +3,9 @@ name: Extract MyM Meta AI Zip
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   extract-zip:
     runs-on: ubuntu-latest
