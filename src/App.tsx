@@ -7,7 +7,18 @@ export default function App() {
   const [viewDate, setViewDate] = useState<Date>(() => new Date(2026, 8, 1));
   const [today] = useState<Date>(() => new Date());
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [reminders, setReminders] = useState(() => {\n    try {\n      const saved = localStorage.getItem("mym-reminders");\n      return saved ? JSON.parse(saved) : { agua: false, pastilla: false, sueno: false };\n    } catch {\n      return { agua: false, pastilla: false, sueno: false };\n    }\n  });\n  const [periodStart, setPeriodStart] = useState<Date | null>(() => {\n    const saved = localStorage.getItem("mym-period-start");\n    return saved ? new Date(saved) : null;\n  });
+  const [reminders, setReminders] = useState(() => {
+    try {
+      const saved = localStorage.getItem("mym-reminders");
+      return saved ? JSON.parse(saved) : { agua: false, pastilla: false, sueno: false };
+    } catch {
+      return { agua: false, pastilla: false, sueno: false };
+    }
+  });
+  const [periodStart, setPeriodStart] = useState<Date | null>(() => {
+    const saved = localStorage.getItem("mym-period-start");
+    return saved ? new Date(saved) : null;
+  });
 
   // theme init
   useEffect(() => {
@@ -77,11 +88,11 @@ export default function App() {
     return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
   };
 
-  // period reference for demo: 15 Aug 2026
-  const basePeriodStart = useMemo(() => new Date(2026, 7, 15), []);
+  const basePeriodStart = periodStart;
 
   const getDayType = (date: Date) => {
-    if (!basePeriodStart) return "normal";\n    const diffTime = date.getTime() - basePeriodStart.getTime();
+    if (!basePeriodStart) return "normal";
+    const diffTime = date.getTime() - basePeriodStart.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     // handle negative modulo
     const cyclePos = ((diffDays % 28) + 28) % 28;
@@ -119,7 +130,8 @@ export default function App() {
   }, [viewDate]);
 
   const cycleDayForToday = useMemo(() => {
-    if (!basePeriodStart) return 0;\n    const diff = Math.floor((today.getTime() - basePeriodStart.getTime()) / (1000 * 60 * 60 * 24));
+    if (!basePeriodStart) return 0;
+    const diff = Math.floor((today.getTime() - basePeriodStart.getTime()) / (1000 * 60 * 60 * 24));
     const pos = ((diff % 28) + 28) % 28;
     return pos + 1;
   }, [today, basePeriodStart]);
@@ -136,7 +148,13 @@ export default function App() {
     return cells;
   }, [startWeekDay, daysInMonth, viewDate]);
 
-  const registerPeriod = () => {\n    const start = new Date();\n    setPeriodStart(start);\n    localStorage.setItem("mym-period-start", start.toISOString());\n  };\n\n  const handleToggleTheme = () => {
+  const registerPeriod = () => {
+    const start = new Date();
+    setPeriodStart(start);
+    localStorage.setItem("mym-period-start", start.toISOString());
+  };
+
+  const handleToggleTheme = () => {
     const next = !isDark;
     setIsDark(next);
     localStorage.setItem("mym-theme", next ? "dark" : "light");
