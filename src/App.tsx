@@ -1,689 +1,1130 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import logoImg from "./assets/logo.png";
 
+type Profile = {
+  name: string;
+  periodStart: string;
+  cycleLength: number;
+  periodLength: number;
+};
+
+type DayType = "normal" | "period" | "predicted" | "fertile" | "ovulation";
+
+const PROFILE_KEY = "mym-profile";
+const REMINDERS_KEY = "mym-reminders";
+const THEME_KEY = "mym-theme";
+
+const todayDate = () => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+const dateToInput = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const inputToDate = (value: string) => {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const daysBetween = (a: Date, b: Date) =>
+  Math.floor((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
 export default function App() {
-  const [isDark, setIsDark] = useState<boolean>(false);
-  const [tab, setTab] = useState<string>("calendario");
-  const [viewDate, setViewDate] = useState<Date>(() => new Date(2026, 8, 1));
-  const [today] = useState<Date>(() => new Date());
-  const [isMobile, setIsMobile] = useState<boolean>(false);
-  const [reminders, setReminders] = useState(() => {
+  const today = useMemo(() => todayDate(), []);
+
+  const [profile, setProfile] = useState<Profile | null>(() => {
     try {
-      const saved = localStorage.getItem("mym-reminders");
-      return saved ? JSON.parse(saved) : { agua: false, pastilla: false, sueno: false };
+      const saved = localStorage.getItem(PROFILE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(THEME_KEY) === "dark";
+    } catch {
+      return false;
+    }
+  });
+
+  const [tab, setTab] = useState<"hoy" | "calendario" | "historial">("hoy");
+
+  const [viewDate, setViewDate] = useState<Date>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  const [reminders, setReminders] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(REMINDERS_KEY);
+      return saved
+        ? JSON.parse(saved)
+        : { agua: false, pastilla: false, sueno: false };
     } catch {
       return { agua: false, pastilla: false, sueno: false };
     }
   });
-  const [periodStart, setPeriodStart] = useState<Date | null>(() => {
-    const saved = localStorage.getItem("mym-period-start");
-    return saved ? new Date(saved) : null;
-  });
 
-  // theme init
+  const [name, setName] = useState("");
+  const [lastPeriod, setLastPeriod] = useState(dateToInput(today));
+  const [cycleLength, setCycleLength] = useState("28");
+  const [periodLength, setPeriodLength] = useState("5");
+
   useEffect(() => {
-    const saved = localStorage.getItem("mym-theme");
-    if (saved) {
-      setIsDark(saved === "dark");
-    } else {
-      // default claro as spec, but respect prefers
-      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-      // keep false unless saved, to match spec light default; comment if want auto
-      if (prefersDark && saved === null) {
-        // keep light by default per spec, uncomment to auto dark
-        // setIsDark(true)
-      }
-    }
     const check = () => setIsMobile(window.innerWidth < 640);
+
     check();
     window.addEventListener("resize", check);
+
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_KEY, isDark ? "dark" : "light");
+  }, [isDark]);
 
   const theme = useMemo(() => {
     if (!isDark) {
       return {
         bg: "#F7FBFA",
         text: "#243638",
+        muted: "#657778",
         card: "#FFFFFF",
-        border: "#E8F2F0",
-        gridBg: "rgba(255,255,255,0.10)",
-        cell: "rgba(255,255,255,0.08)",
-        overlay: "rgba(247,251,250,0.20)",
-        logoOpacity: 0.18,
-        tabActiveBg: "#243638",
-        tabActiveText: "#FFFFFF",
-        tabInactiveBg: "transparent",
-        tabInactiveText: "#243638",
+        border: "#DDECEA",
+        soft: "#EDF7F6",
+        aqua: "#72C8D0",
+        aquaDark: "#2F858D",
         todayBg: "#243638",
         todayText: "#FFFFFF",
-        periodBg: "rgba(255,217,217,0.55)",
-        fertileBg: "rgba(221,243,244,0.40)",
-        ovulationBg: "rgba(255,255,255,0.60)",
-      };
-    } else {
-      return {
-        bg: "#0F1A1B",
-        text: "#E8F2F0",
-        card: "#1A2E30",
-        border: "#2A4446",
-        gridBg: "rgba(36,54,56,0.40)",
-        cell: "rgba(255,255,255,0.06)",
-        overlay: "rgba(15,26,27,0.40)",
-        logoOpacity: 0.12,
-        tabActiveBg: "#72C8D0",
-        tabActiveText: "#0F1A1B",
-        tabInactiveBg: "transparent",
-        tabInactiveText: "#E8F2F0",
-        todayBg: "#72C8D0",
-        todayText: "#0F1A1B",
-        periodBg: "rgba(255,120,120,0.25)",
-        fertileBg: "rgba(114,200,208,0.15)",
-        ovulationBg: "rgba(255,255,255,0.12)",
+        periodBg: "rgba(255, 198, 201, 0.55)",
+        fertileBg: "rgba(180, 231, 232, 0.42)",
+        ovulationBg: "rgba(255,255,255,0.8)",
       };
     }
+
+    return {
+      bg: "#0F1A1B",
+      text: "#E8F2F0",
+      muted: "#A8B9BA",
+      card: "#1A2E30",
+      border: "#2A4446",
+      soft: "#20383A",
+      aqua: "#72C8D0",
+      aquaDark: "#9BE0E5",
+      todayBg: "#72C8D0",
+      todayText: "#0F1A1B",
+      periodBg: "rgba(255, 120, 120, 0.25)",
+      fertileBg: "rgba(114, 200, 208, 0.15)",
+      ovulationBg: "rgba(255,255,255,0.12)",
+    };
   }, [isDark]);
 
-  const isSameDay = (a: Date, b: Date) => {
-    return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
-  };
+  const periodStart = profile ? inputToDate(profile.periodStart) : null;
 
-  const basePeriodStart = periodStart;
+  const cycleDayForToday = useMemo(() => {
+    if (!profile || !periodStart) return 0;
 
-  const getDayType = (date: Date) => {
-    if (!basePeriodStart) return "normal";
-    const diffTime = date.getTime() - basePeriodStart.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    // handle negative modulo
-    const cyclePos = ((diffDays % 28) + 28) % 28;
-    const isFuture = date > today;
-    const isPeriod = cyclePos < 5;
-    const isPredicted = isPeriod && isFuture && diffDays > 5;
-    const isOvulation = cyclePos === 14;
-    const isFertile = (cyclePos >= 12 && cyclePos <= 16) && !isOvulation;
-    if (isOvulation) return "ovulation";
-    if (isPeriod) return isPredicted ? "predicted" : "period";
-    if (isFertile) return "fertile";
+    const diff = daysBetween(today, periodStart);
+    return ((diff % profile.cycleLength) + profile.cycleLength) % profile.cycleLength + 1;
+  }, [profile, periodStart, today]);
+
+  const getDayType = (date: Date): DayType => {
+    if (!profile || !periodStart) return "normal";
+
+    const diffDays = daysBetween(date, periodStart);
+
+    if (diffDays < 0) return "normal";
+
+    const cyclePosition =
+      ((diffDays % profile.cycleLength) + profile.cycleLength) %
+      profile.cycleLength;
+
+    const isFuture = date.getTime() > today.getTime();
+
+    if (cyclePosition < profile.periodLength) {
+      return isFuture ? "predicted" : "period";
+    }
+
+    const ovulationDay = Math.max(profile.cycleLength - 14, 1);
+
+    if (cyclePosition === ovulationDay) {
+      return "ovulation";
+    }
+
+    if (
+      cyclePosition >= ovulationDay - 5 &&
+      cyclePosition <= ovulationDay + 1
+    ) {
+      return "fertile";
+    }
+
     return "normal";
   };
 
+  const handleStart = () => {
+    const cleanName = name.trim();
+
+    if (!cleanName || !lastPeriod) return;
+
+    const selectedDate = inputToDate(lastPeriod);
+
+    if (selectedDate.getTime() > today.getTime()) {
+      return;
+    }
+
+    const newProfile: Profile = {
+      name: cleanName,
+      periodStart: lastPeriod,
+      cycleLength: Number(cycleLength),
+      periodLength: Number(periodLength),
+    };
+
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile));
+    setProfile(newProfile);
+    setTab("hoy");
+    setViewDate(
+      new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+    );
+  };
+
+  const registerNewPeriod = () => {
+    if (!profile) return;
+
+    const updatedProfile = {
+      ...profile,
+      periodStart: dateToInput(today),
+    };
+
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(updatedProfile));
+    setProfile(updatedProfile);
+    setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+  };
+
+  const toggleReminder = (id: string) => {
+    const next = {
+      ...reminders,
+      [id]: !reminders[id],
+    };
+
+    setReminders(next);
+    localStorage.setItem(REMINDERS_KEY, JSON.stringify(next));
+  };
+
   const changeMonth = (delta: number) => {
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+    setViewDate(
+      new Date(viewDate.getFullYear(), viewDate.getMonth() + delta, 1)
+    );
   };
 
-  const switchTab = (newTab: string) => {
-    setTab(newTab);
-  };
+  const monthLabel = viewDate.toLocaleDateString("es-ES", {
+    month: "long",
+    year: "numeric",
+  });
 
-  const monthLabel = useMemo(() => {
-    return viewDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-  }, [viewDate]);
+  const daysInMonth = new Date(
+    viewDate.getFullYear(),
+    viewDate.getMonth() + 1,
+    0
+  ).getDate();
 
-  const daysInMonth = useMemo(() => {
-    return new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
-  }, [viewDate]);
+  const startWeekDay =
+    (new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay() + 6) %
+    7;
 
-  const startWeekDay = useMemo(() => {
-    // Monday = 0
-    const first = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay(); // 0 Sun
-    return (first + 6) % 7;
-  }, [viewDate]);
+  const calendarDays = useMemo(() => {
+    const cells: Array<Date | null> = [];
 
-  const cycleDayForToday = useMemo(() => {
-    if (!basePeriodStart) return 0;
-    const diff = Math.floor((today.getTime() - basePeriodStart.getTime()) / (1000 * 60 * 60 * 24));
-    const pos = ((diff % 28) + 28) % 28;
-    return pos + 1;
-  }, [today, basePeriodStart]);
-
-  const renderDays = useMemo(() => {
-    const cells: { key: string; date: Date | null; isEmpty?: boolean }[] = [];
     for (let i = 0; i < startWeekDay; i++) {
-      cells.push({ key: `empty-${i}`, date: null, isEmpty: true });
+      cells.push(null);
     }
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(viewDate.getFullYear(), viewDate.getMonth(), d);
-      cells.push({ key: `day-${d}`, date });
-    }
-    return cells;
-  }, [startWeekDay, daysInMonth, viewDate]);
 
-  const registerPeriod = () => {
-    const start = new Date();
-    setPeriodStart(start);
-    localStorage.setItem("mym-period-start", start.toISOString());
-  };
+    for (let day = 1; day <= daysInMonth; day++) {
+      cells.push(
+        new Date(viewDate.getFullYear(), viewDate.getMonth(), day)
+      );
+    }
+
+    return cells;
+  }, [daysInMonth, startWeekDay, viewDate]);
+
+  const nextPeriodDate = useMemo(() => {
+    if (!profile || !periodStart) return null;
+
+    const next = new Date(periodStart);
+    next.setDate(next.getDate() + profile.cycleLength);
+
+    while (next.getTime() <= today.getTime()) {
+      next.setDate(next.getDate() + profile.cycleLength);
+    }
+
+    return next;
+  }, [profile, periodStart, today]);
+
+  const daysUntilNextPeriod = nextPeriodDate
+    ? daysBetween(nextPeriodDate, today)
+    : 0;
 
   const handleToggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    localStorage.setItem("mym-theme", next ? "dark" : "light");
+    setIsDark((value) => !value);
   };
+
+  /*
+   * FIRST VISIT
+   * This is intentionally outside the normal app shell.
+   * A new user should never land directly inside Calendar.
+   */
+  if (!profile) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: theme.bg,
+          color: theme.text,
+          display: "flex",
+          justifyContent: "center",
+          padding: "24px 16px",
+        }}
+      >
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+
+          * {
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, sans-serif;
+          }
+
+          .fraunces {
+            font-family: 'Fraunces', Georgia, serif;
+          }
+
+          input, select, button {
+            font: inherit;
+          }
+
+          button {
+            -webkit-tap-highlight-color: transparent;
+          }
+        `}</style>
+
+        <main
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            paddingTop: 20,
+            paddingBottom: 40,
+          }}
+        >
+          <header
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 34,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <img
+                src={logoImg}
+                alt="MyM"
+                style={{
+                  width: 46,
+                  height: 46,
+                  objectFit: "contain",
+                }}
+              />
+
+              <div>
+                <div
+                  className="fraunces"
+                  style={{
+                    fontSize: 26,
+                    lineHeight: 1,
+                    letterSpacing: "-0.03em",
+                  }}
+                >
+                  MyM
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.13em",
+                    textTransform: "uppercase",
+                    color: theme.muted,
+                  }}
+                >
+                  Mi Ciclo, Mi Ritmo
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleToggleTheme}
+              aria-label="Cambiar tema"
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 12,
+                border: `1px solid ${theme.border}`,
+                background: theme.card,
+                color: theme.text,
+                cursor: "pointer",
+              }}
+            >
+              {isDark ? "☀️" : "🌙"}
+            </button>
+          </header>
+
+          <section
+            style={{
+              background: theme.card,
+              border: `1px solid ${theme.border}`,
+              borderRadius: 28,
+              padding: isMobile ? 24 : 34,
+              boxShadow: isDark
+                ? "0 18px 50px rgba(0,0,0,0.25)"
+                : "0 18px 50px rgba(36,54,56,0.08)",
+            }}
+          >
+            <div
+              style={{
+                width: 68,
+                height: 68,
+                borderRadius: 20,
+                background: theme.soft,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 22,
+                fontSize: 30,
+              }}
+            >
+              🌊
+            </div>
+
+            <h1
+              className="fraunces"
+              style={{
+                fontSize: isMobile ? 30 : 36,
+                lineHeight: 1.05,
+                margin: 0,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Hola, bienvenida a MyM
+            </h1>
+
+            <p
+              style={{
+                color: theme.muted,
+                fontSize: 15,
+                lineHeight: 1.65,
+                marginTop: 12,
+                marginBottom: 30,
+              }}
+            >
+              Vamos a conocer tu ciclo. Solo necesitamos unos datos para
+              comenzar.
+            </p>
+
+            <div style={{ display: "grid", gap: 22 }}>
+              <label style={{ display: "grid", gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  ¿Cómo te llamas?
+                </span>
+
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu nombre"
+                  autoComplete="name"
+                  style={{
+                    width: "100%",
+                    height: 50,
+                    borderRadius: 14,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.bg,
+                    color: theme.text,
+                    padding: "0 15px",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  ¿Cuándo comenzó tu último periodo?
+                </span>
+
+                <input
+                  type="date"
+                  value={lastPeriod}
+                  max={dateToInput(today)}
+                  onChange={(e) => setLastPeriod(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 50,
+                    borderRadius: 14,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.bg,
+                    color: theme.text,
+                    padding: "0 15px",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 14,
+                }}
+              >
+                <label style={{ display: "grid", gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Duración del ciclo
+                  </span>
+
+                  <select
+                    value={cycleLength}
+                    onChange={(e) => setCycleLength(e.target.value)}
+                    style={{
+                      width: "100%",
+                      height: 50,
+                      borderRadius: 14,
+                      border: `1px solid ${theme.border}`,
+                      background: theme.bg,
+                      color: theme.text,
+                      padding: "0 12px",
+                      outline: "none",
+                    }}
+                  >
+                    {[21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35].map(
+                      (days) => (
+                        <option key={days} value={days}>
+                          {days} días
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <label style={{ display: "grid", gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Duración del periodo
+                  </span>
+
+                  <select
+                    value={periodLength}
+                    onChange={(e) => setPeriodLength(e.target.value)}
+                    style={{
+                      width: "100%",
+                      height: 50,
+                      borderRadius: 14,
+                      border: `1px solid ${theme.border}`,
+                      background: theme.bg,
+                      color: theme.text,
+                      padding: "0 12px",
+                      outline: "none",
+                    }}
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8].map((days) => (
+                      <option key={days} value={days}>
+                        {days} días
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <button
+                onClick={handleStart}
+                disabled={
+                  !name.trim() ||
+                  !lastPeriod ||
+                  inputToDate(lastPeriod).getTime() > today.getTime()
+                }
+                style={{
+                  marginTop: 4,
+                  width: "100%",
+                  height: 54,
+                  borderRadius: 16,
+                  border: "none",
+                  background:
+                    !name.trim() || !lastPeriod
+                      ? theme.border
+                      : theme.aqua,
+                  color:
+                    !name.trim() || !lastPeriod
+                      ? theme.muted
+                      : "#173437",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor:
+                    !name.trim() || !lastPeriod
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                Comenzar
+              </button>
+            </div>
+
+            <p
+              style={{
+                textAlign: "center",
+                color: theme.muted,
+                fontSize: 11,
+                lineHeight: 1.5,
+                marginTop: 18,
+              }}
+            >
+              Tus datos se guardan solo en este dispositivo.
+            </p>
+          </section>
+
+          <footer
+            style={{
+              textAlign: "center",
+              color: theme.muted,
+              opacity: 0.7,
+              fontSize: 9,
+              letterSpacing: "0.1em",
+              marginTop: 22,
+              textTransform: "uppercase",
+            }}
+          >
+            MyM for LilibetSP. courtesy of geeskit.com 2026
+          </footer>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div
       style={{
-        backgroundColor: theme.bg,
-        color: theme.text,
         minHeight: "100vh",
-        transition: "background-color 0.35s ease, color 0.35s ease",
+        background: theme.bg,
+        color: theme.text,
       }}
-      className="w-full antialiased"
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&display=swap');
-        * { font-family: 'Inter', system-ui, sans-serif; }
-        .fraunces { font-family: 'Fraunces', serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+          box-sizing: border-box;
+          font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .fraunces {
+          font-family: 'Fraunces', Georgia, serif;
+        }
+
+        button {
+          -webkit-tap-highlight-color: transparent;
+        }
       `}</style>
 
-      <div className="max-w-[980px] mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-2">
-        {/* Header */}
-        <header className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      <div
+        style={{
+          maxWidth: 980,
+          margin: "0 auto",
+          padding: "24px 16px 12px",
+        }}
+      >
+        <header
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 11,
+            }}
+          >
             <img
               src={logoImg}
-              alt="MyM logo"
-              style={{ width: 42, height: 42, objectFit: "contain" }}
-              className="select-none"
+              alt="MyM"
+              style={{
+                width: 42,
+                height: 42,
+                objectFit: "contain",
+              }}
             />
-            <div className="flex flex-col leading-none">
-              <span className="fraunces" style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1 }}>
-                MyM
-              </span>
-              <span
+
+            <div>
+              <div
+                className="fraunces"
                 style={{
-                  fontSize: 11,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  opacity: 0.65,
-                  marginTop: 2,
-                  fontWeight: 600,
+                  fontSize: 23,
+                  lineHeight: 1,
+                  letterSpacing: "-0.03em",
                 }}
               >
-                Tu ciclo, claro
-              </span>
+                MyM
+              </div>
+
+              <div
+                style={{
+                  fontSize: 9,
+                  marginTop: 5,
+                  fontWeight: 700,
+                  letterSpacing: "0.13em",
+                  textTransform: "uppercase",
+                  color: theme.muted,
+                }}
+              >
+                Mi Ciclo, Mi Ritmo
+              </div>
             </div>
           </div>
 
           <button
             onClick={handleToggleTheme}
-            aria-label="Toggle tema oscuro"
+            aria-label="Cambiar tema"
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 999,
-              backgroundColor: theme.card,
+              width: 38,
+              height: 38,
+              borderRadius: 12,
               border: `1px solid ${theme.border}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              background: theme.card,
+              color: theme.text,
               cursor: "pointer",
-              transition: "all 0.3s ease",
-              boxShadow: isDark ? "0 2px 10px rgba(0,0,0,0.25)" : "0 2px 8px rgba(0,0,0,0.06)",
             }}
           >
-            <span style={{ fontSize: 16 }}>{isDark ? "☀️" : "🌙"}</span>
+            {isDark ? "☀️" : "🌙"}
           </button>
         </header>
 
-        {/* Tabs */}
-        <div className="mt-6 flex gap-2">
+        <nav
+          style={{
+            display: "flex",
+            gap: 8,
+            marginTop: 24,
+            overflowX: "auto",
+            paddingBottom: 2,
+          }}
+        >
           {[
-            { id: "hoy", label: "Hoy" },
-            { id: "calendario", label: "Calendario" },
-            { id: "historial", label: "Historial" },
-          ].map((t) => {
-            const active = tab === t.id;
+            { id: "hoy" as const, label: "Hoy" },
+            { id: "calendario" as const, label: "Calendario" },
+            { id: "historial" as const, label: "Historial" },
+          ].map((item) => {
+            const active = tab === item.id;
+
             return (
               <button
-                key={t.id}
-                onClick={() => switchTab(t.id)}
+                key={item.id}
+                onClick={() => setTab(item.id)}
                 style={{
-                  padding: "8px 16px",
-                  borderRadius: 999,
+                  padding: "9px 16px",
+                  borderRadius: 12,
+                  border: `1px solid ${
+                    active ? theme.text : theme.border
+                  }`,
+                  background: active ? theme.text : "transparent",
+                  color: active ? theme.bg : theme.text,
                   fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: "0.02em",
-                  border: `1px solid ${active ? theme.tabActiveBg : theme.border}`,
-                  backgroundColor: active ? theme.tabActiveBg : theme.tabInactiveBg,
-                  color: active ? theme.tabActiveText : theme.tabInactiveText,
-                  transition: "all 0.25s ease",
+                  fontWeight: 700,
                   cursor: "pointer",
+                  whiteSpace: "nowrap",
                 }}
               >
-                {t.label}
+                {item.label}
               </button>
             );
           })}
-        </div>
+        </nav>
 
-        {/* Main content */}
-        <div className="mt-5">
-          {tab === "calendario" && !periodStart && (
-            <div
+        <main style={{ marginTop: 18 }}>
+          {tab === "hoy" && (
+            <section
               style={{
-                borderRadius: 24,
-                backgroundColor: theme.card,
+                background: theme.card,
                 border: `1px solid ${theme.border}`,
-                padding: 28,
-                minHeight: 420,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                textAlign: "center",
-                boxShadow: isDark ? "0 12px 40px rgba(0,0,0,0.35)" : "0 12px 32px rgba(36,54,56,0.08)",
+                borderRadius: 26,
+                padding: isMobile ? 22 : 30,
+                boxShadow: isDark
+                  ? "0 18px 50px rgba(0,0,0,0.22)"
+                  : "0 18px 50px rgba(36,54,56,0.07)",
               }}
             >
-              <img src={logoImg} alt="MyM logo" style={{ width: 72, height: 72, objectFit: "contain", marginBottom: 18 }} />
-              <h2 className="fraunces" style={{ fontSize: 24 }}>Comienza tu ciclo</h2>
-              <p style={{ fontSize: 14, opacity: 0.65, maxWidth: 300, lineHeight: 1.6, marginTop: 8 }}>
-                Registra el primer día de tu periodo para empezar a llevar tu calendario.
-              </p>
-              <button
-                onClick={registerPeriod}
+              <div
                 style={{
-                  marginTop: 22,
-                  padding: "12px 22px",
-                  borderRadius: 999,
-                  border: "none",
-                  backgroundColor: "#72C8D0",
-                  color: "#0F1A1B",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
                 }}
               >
-                Registrar mi periodo
-              </button>
-            </div>
-          )}
-
-          {tab === "calendario" && periodStart && (
-            <div
-              style={{
-                position: "relative",
-                borderRadius: 24,
-                overflow: "hidden",
-                minHeight: isMobile ? 480 : 520,
-                maxHeight: isMobile ? "70vh" : "none",
-                backgroundColor: theme.card,
-                border: `1px solid ${theme.border}`,
-                boxShadow: isDark
-                  ? "0 12px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)"
-                  : "0 12px 32px rgba(36,54,56,0.08), 0 2px 8px rgba(36,54,56,0.04)",
-                transition: "all 0.35s ease",
-              }}
-            >
-              {/* Fondo logo */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundImage: `url(${logoImg})`,
-                  backgroundSize: isMobile ? "240px" : "380px",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: isMobile ? "center 10%" : "center 20%",
-                  opacity: theme.logoOpacity,
-                  pointerEvents: "none",
-                  filter: isDark ? "brightness(1.8)" : "none",
-                  transition: "opacity 0.35s ease, filter 0.35s ease",
-                }}
-              />
-              {/* Overlay */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundColor: theme.overlay,
-                  pointerEvents: "none",
-                  transition: "background-color 0.35s ease",
-                }}
-              />
-              {/* Content */}
-              <div style={{ position: "relative", zIndex: 2, padding: 20 }}>
-                {/* Month nav */}
-                <div className="flex items-center justify-between mb-4">
-                  <button
-                    onClick={() => changeMonth(-1)}
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 999,
-                      backgroundColor: theme.card,
-                      border: `1px solid ${theme.border}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      transition: "all 0.25s ease",
-                    }}
-                  >
-                    <span style={{ fontSize: 16, lineHeight: 1 }}>‹</span>
-                  </button>
-                  <h2 className="fraunces capitalize" style={{ fontSize: isMobile ? 18 : 20, fontWeight: 600 }}>
-                    {monthLabel}
-                  </h2>
-                  <button
-                    onClick={() => changeMonth(1)}
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 999,
-                      backgroundColor: theme.card,
-                      border: `1px solid ${theme.border}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: "pointer",
-                      transition: "all 0.25s ease",
-                    }}
-                  >
-                    <span style={{ fontSize: 16, lineHeight: 1 }}>›</span>
-                  </button>
-                </div>
-
-                {/* Grid box */}
                 <div
                   style={{
-                    backgroundColor: theme.gridBg,
-                    backdropFilter: "blur(12px)",
-                    WebkitBackdropFilter: "blur(12px)",
-                    borderRadius: 16,
-                    padding: 12,
-                    border: `1px solid ${theme.border}`,
-                    transition: "all 0.35s ease",
+                    width: 66,
+                    height: 66,
+                    borderRadius: 18,
+                    background: theme.soft,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
                   }}
                 >
-                  {/* Weekdays */}
-                  <div className="grid grid-cols-7 mb-2">
-                    {["L", "M", "X", "J", "V", "S", "D"].map((w, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          opacity: 0.5,
-                          textAlign: "center",
-                          padding: "6px 0",
-                          letterSpacing: "0.06em",
-                        }}
-                      >
-                        {w}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Days */}
-                  <div className="grid grid-cols-7 gap-[4px]">
-                    {renderDays.map((cell) => {
-                      if (cell.isEmpty || !cell.date) {
-                        return <div key={cell.key} style={{ aspectRatio: "1/1" }} />;
-                      }
-                      const dayType = getDayType(cell.date);
-                      const isToday = isSameDay(cell.date, today);
-                      const isSelected = isSameDay(cell.date, viewDate) && tab === "calendario" ? false : false;
-
-                      let bg = theme.cell;
-                      let borderStyle = `1px solid ${theme.border}`;
-                      let extraStyle: React.CSSProperties = {};
-
-                      if (dayType === "period") {
-                        bg = theme.periodBg;
-                      } else if (dayType === "predicted") {
-                        bg = theme.periodBg;
-                        borderStyle = `1px dashed ${isDark ? "rgba(255,120,120,0.6)" : "rgba(180,80,80,0.45)"}`;
-                      } else if (dayType === "fertile") {
-                        bg = theme.fertileBg;
-                      } else if (dayType === "ovulation") {
-                        bg = theme.ovulationBg;
-                        borderStyle = `2px solid #72C8D0`;
-                      }
-
-                      if (isToday) {
-                        bg = theme.todayBg;
-                        extraStyle.color = theme.todayText;
-                        extraStyle.fontWeight = 700;
-                      }
-
-                      return (
-                        <div
-                          key={cell.key}
-                          style={{
-                            aspectRatio: "1 / 1",
-                            borderRadius: 12,
-                            backgroundColor: bg,
-                            border: isToday ? `1px solid ${theme.todayBg}` : borderStyle,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 13,
-                            fontWeight: isToday ? 700 : 500,
-                            cursor: "pointer",
-                            transition: "all 0.25s ease",
-                            position: "relative",
-                            ...extraStyle,
-                          }}
-                          className="hover:scale-[1.04]"
-                          title={`${cell.date.toLocaleDateString("es-ES")} - ${dayType}`}
-                          onClick={() => {
-                            // quick select day for demo
-                            // setViewDate(cell.date!) // not change month view, keep today logic separate
-                          }}
-                        >
-                          {cell.date.getDate()}
-                          {dayType === "ovulation" && !isToday && (
-                            <span
-                              style={{
-                                position: "absolute",
-                                width: 4,
-                                height: 4,
-                                borderRadius: 999,
-                                backgroundColor: "#72C8D0",
-                                bottom: 4,
-                              }}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Legend */}
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    {[
-                      { label: "Periodo", color: theme.periodBg, border: theme.border },
-                      { label: "Predicción", color: theme.periodBg, dashed: true },
-                      { label: "Fértil", color: theme.fertileBg },
-                      { label: "Ovulación", color: theme.ovulationBg, border: "#72C8D0" },
-                    ].map((l) => (
-                      <div key={l.label} className="flex items-center gap-2">
-                        <div
-                          style={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: 4,
-                            backgroundColor: l.color,
-                            border: `1px ${l.dashed ? "dashed" : "solid"} ${l.border || theme.border}`,
-                          }}
-                        />
-                        <span style={{ fontSize: 10, opacity: 0.7, letterSpacing: "0.04em" }}>{l.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {tab === "hoy" && !periodStart && (
-            <div
-              style={{
-                borderRadius: 24,
-                backgroundColor: theme.card,
-                border: `1px solid ${theme.border}`,
-                padding: 28,
-                minHeight: 320,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                textAlign: "center",
-              }}
-            >
-              <h3 className="fraunces" style={{ fontSize: 22 }}>Aún no hay registros</h3>
-              <p style={{ fontSize: 13, opacity: 0.65, maxWidth: 280, lineHeight: 1.5, marginTop: 8 }}>
-                Registra tu primer periodo desde Calendario para comenzar.
-              </p>
-              <button
-                onClick={() => setTab("calendario")}
-                style={{
-                  marginTop: 20,
-                  padding: "11px 20px",
-                  borderRadius: 999,
-                  border: "none",
-                  backgroundColor: "#72C8D0",
-                  color: "#0F1A1B",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Ir a Calendario
-              </button>
-            </div>
-          )}
-
-          {tab === "hoy" && periodStart && (
-            <div
-              style={{
-                position: "relative",
-                borderRadius: 24,
-                overflow: "hidden",
-                backgroundColor: theme.card,
-                border: `1px solid ${theme.border}`,
-                boxShadow: isDark
-                  ? "0 12px 40px rgba(0,0,0,0.35)"
-                  : "0 12px 32px rgba(36,54,56,0.08)",
-                transition: "all 0.35s ease",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundImage: `url(${logoImg})`,
-                  backgroundSize: isMobile ? "240px" : "380px",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: isMobile ? "center 10%" : "center 20%",
-                  opacity: theme.logoOpacity * 0.8,
-                  pointerEvents: "none",
-                  filter: isDark ? "brightness(1.8)" : "none",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  backgroundColor: theme.overlay,
-                  pointerEvents: "none",
-                }}
-              />
-              <div style={{ position: "relative", zIndex: 2, padding: 20 }}>
-                <div className="flex gap-4 items-center">
-                  <div
+                  <span
+                    className="fraunces"
                     style={{
-                      width: 64,
-                      height: 64,
-                      borderRadius: 20,
-                      backgroundColor: theme.bg,
-                      border: `1px solid ${theme.border}`,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      fontSize: 23,
                       lineHeight: 1,
                     }}
                   >
-                    <span style={{ fontSize: 22, fontWeight: 700 }} className="fraunces">
-                      {today.getDate()}
-                    </span>
-                    <span style={{ fontSize: 9, opacity: 0.6, textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
-                      {today.toLocaleDateString("es-ES", { month: "short" })}
-                    </span>
+                    {today.getDate()}
+                  </span>
+
+                  <span
+                    style={{
+                      fontSize: 9,
+                      color: theme.muted,
+                      textTransform: "uppercase",
+                      marginTop: 4,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {today.toLocaleDateString("es-ES", {
+                      month: "short",
+                    })}
+                  </span>
+                </div>
+
+                <div>
+                  <p
+                    style={{
+                      color: theme.muted,
+                      fontSize: 12,
+                      margin: 0,
+                    }}
+                  >
+                    Hola, {profile.name}
+                  </p>
+
+                  <h1
+                    className="fraunces"
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: isMobile ? 25 : 30,
+                      lineHeight: 1.05,
+                    }}
+                  >
+                    Día {cycleDayForToday} de tu ciclo
+                  </h1>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 26,
+                  padding: 18,
+                  borderRadius: 18,
+                  background: theme.soft,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: theme.muted,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  Hoy
+                </div>
+
+                <div
+                  className="fraunces"
+                  style={{
+                    fontSize: 22,
+                    marginTop: 6,
+                  }}
+                >
+                  {getDayType(today) === "period"
+                    ? "Estás en tu periodo"
+                    : getDayType(today) === "ovulation"
+                    ? "Día estimado de ovulación"
+                    : getDayType(today) === "fertile"
+                    ? "Ventana fértil estimada"
+                    : "Día regular de tu ciclo"}
+                </div>
+
+                <p
+                  style={{
+                    color: theme.muted,
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    margin: "7px 0 0",
+                  }}
+                >
+                  MyM usa tus registros para ayudarte a entender el ritmo de
+                  tu ciclo.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gap: 12,
+                  marginTop: 14,
+                }}
+              >
+                <div
+                  style={{
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 18,
+                    padding: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: theme.muted,
+                      fontWeight: 700,
+                    }}
+                  >
+                    PRÓXIMO PERIODO
                   </div>
-                  <div>
-                    <h3 className="fraunces" style={{ fontSize: 18, lineHeight: 1.1 }}>
-                      Día {cycleDayForToday} del ciclo
-                    </h3>
-                    <p style={{ fontSize: 13, opacity: 0.7, marginTop: 4 }}>
-                      {getDayType(today) === "period"
-                        ? "Hoy es día de periodo. Descansa e hidrátate."
-                        : getDayType(today) === "fertile"
-                        ? "Ventana fértil. Alta probabilidad."
-                        : getDayType(today) === "ovulation"
-                        ? "Día de ovulación."
-                        : "Día regular del ciclo."}
-                    </p>
+
+                  <div
+                    className="fraunces"
+                    style={{
+                      fontSize: 20,
+                      marginTop: 7,
+                    }}
+                  >
+                    {nextPeriodDate
+                      ? nextPeriodDate.toLocaleDateString("es-ES", {
+                          day: "numeric",
+                          month: "long",
+                        })
+                      : "—"}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: theme.muted,
+                      marginTop: 4,
+                    }}
+                  >
+                    Aproximadamente en {daysUntilNextPeriod} días
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-3">
-                  <h4 style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.5, fontWeight: 600 }}>
+                <div
+                  style={{
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 18,
+                    padding: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: theme.muted,
+                      fontWeight: 700,
+                    }}
+                  >
+                    TU CICLO
+                  </div>
+
+                  <div
+                    className="fraunces"
+                    style={{
+                      fontSize: 20,
+                      marginTop: 7,
+                    }}
+                  >
+                    {profile.cycleLength} días
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: theme.muted,
+                      marginTop: 4,
+                    }}
+                  >
+                    Periodo habitual: {profile.periodLength} días
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 28 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 10,
+                  }}
+                >
+                  <h2
+                    className="fraunces"
+                    style={{
+                      fontSize: 19,
+                      margin: 0,
+                    }}
+                  >
                     Recordatorios
-                  </h4>
+                  </h2>
+
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: theme.muted,
+                    }}
+                  >
+                    Opcionales
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gap: 9 }}>
                   {[
-                    { id: "agua", label: "Beber agua", desc: "2.2L hoy", icon: "💧" },
-                    { id: "pastilla", label: "Pastilla / suplemento", desc: "20:00", icon: "💊" },
-                    { id: "sueno", label: "Sueño", desc: "7.5h objetivo", icon: "🌙" },
-                  ].map((r) => {
-                    const active = (reminders as any)[r.id];
+                    {
+                      id: "agua",
+                      label: "Beber agua",
+                      desc: "Recordatorio diario",
+                      icon: "💧",
+                    },
+                    {
+                      id: "pastilla",
+                      label: "Pastilla / suplemento",
+                      desc: "Tu recordatorio",
+                      icon: "💊",
+                    },
+                    {
+                      id: "sueno",
+                      label: "Sueño",
+                      desc: "Cuidar tus horas de descanso",
+                      icon: "🌙",
+                    },
+                  ].map((item) => {
+                    const active = reminders[item.id];
+
                     return (
                       <div
-                        key={r.id}
+                        key={item.id}
                         style={{
-                          backgroundColor: theme.gridBg,
-                          border: `1px solid ${theme.border}`,
-                          borderRadius: 16,
-                          padding: "14px 16px",
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
-                          backdropFilter: "blur(12px)",
-                          transition: "all 0.25s ease",
+                          padding: "13px 14px",
+                          borderRadius: 16,
+                          border: `1px solid ${theme.border}`,
                         }}
                       >
-                        <div className="flex gap-3 items-center">
-                          <span style={{ fontSize: 18 }}>{r.icon}</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 11,
+                          }}
+                        >
+                          <span style={{ fontSize: 18 }}>{item.icon}</span>
+
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 600 }}>{r.label}</div>
-                            <div style={{ fontSize: 11, opacity: 0.6 }}>{r.desc}</div>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 700,
+                              }}
+                            >
+                              {item.label}
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize: 10,
+                                color: theme.muted,
+                                marginTop: 2,
+                              }}
+                            >
+                              {item.desc}
+                            </div>
                           </div>
                         </div>
+
                         <button
-                          onClick={() => { const next = { ...reminders, [r.id]: !active }; setReminders(next); localStorage.setItem("mym-reminders", JSON.stringify(next)); }}
+                          onClick={() => toggleReminder(item.id)}
+                          aria-label={`Activar ${item.label}`}
                           style={{
                             width: 44,
                             height: 26,
-                            borderRadius: 999,
-                            backgroundColor: active ? "#72C8D0" : theme.border,
-                            position: "relative",
-                            transition: "all 0.25s ease",
                             border: "none",
+                            borderRadius: 20,
+                            background: active ? theme.aqua : theme.border,
+                            padding: 3,
                             cursor: "pointer",
+                            display: "flex",
+                            justifyContent: active
+                              ? "flex-end"
+                              : "flex-start",
                           }}
                         >
-                          <div
+                          <span
                             style={{
                               width: 20,
                               height: 20,
-                              borderRadius: 999,
-                              backgroundColor: "#fff",
-                              position: "absolute",
-                              top: 3,
-                              left: active ? 21 : 3,
-                              transition: "all 0.25s ease",
-                              boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                              borderRadius: "50%",
+                              background: "#fff",
+                              boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
                             }}
                           />
                         </button>
@@ -692,110 +1133,337 @@ export default function App() {
                   })}
                 </div>
               </div>
-            </div>
+
+              <button
+                onClick={registerNewPeriod}
+                style={{
+                  width: "100%",
+                  marginTop: 20,
+                  height: 46,
+                  borderRadius: 14,
+                  border: `1px solid ${theme.border}`,
+                  background: "transparent",
+                  color: theme.text,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Registrar que comenzó mi periodo hoy
+              </button>
+            </section>
           )}
 
-          {tab === "historial" && !periodStart && (
-            <div
+          {tab === "calendario" && (
+            <section
               style={{
-                borderRadius: 24,
-                backgroundColor: theme.card,
+                background: theme.card,
                 border: `1px solid ${theme.border}`,
-                padding: 28,
-                minHeight: 320,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                textAlign: "center",
-              }}
-            >
-              <div style={{ fontSize: 34, opacity: 0.55, marginBottom: 14 }}>♡</div>
-              <h3 className="fraunces" style={{ fontSize: 20 }}>Tu historial aparecerá aquí</h3>
-              <p style={{ fontSize: 13, opacity: 0.6, marginTop: 8, maxWidth: 280, lineHeight: 1.5 }}>
-                Cuando registres tu primer periodo, MyM comenzará a guardar tus ciclos en este dispositivo.
-              </p>
-            </div>
-          )}
-
-          {tab === "historial" && periodStart && (
-            <div
-              style={{
-                borderRadius: 24,
-                backgroundColor: theme.card,
-                border: `1px solid ${theme.border}`,
-                padding: 24,
-                minHeight: 320,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                textAlign: "center",
-                transition: "all 0.35s ease",
+                borderRadius: 26,
+                padding: isMobile ? 16 : 24,
+                boxShadow: isDark
+                  ? "0 18px 50px rgba(0,0,0,0.22)"
+                  : "0 18px 50px rgba(36,54,56,0.07)",
               }}
             >
               <div
                 style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 24,
-                  backgroundColor: theme.bg,
-                  border: `1px solid ${theme.border}`,
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 16,
+                  justifyContent: "space-between",
+                  marginBottom: 18,
                 }}
               >
-                <span style={{ fontSize: 28, opacity: 0.7 }}>📊</span>
+                <button
+                  onClick={() => changeMonth(-1)}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 12,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.bg,
+                    color: theme.text,
+                    fontSize: 20,
+                    cursor: "pointer",
+                  }}
+                >
+                  ‹
+                </button>
+
+                <h2
+                  className="fraunces"
+                  style={{
+                    fontSize: 21,
+                    margin: 0,
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {monthLabel}
+                </h2>
+
+                <button
+                  onClick={() => changeMonth(1)}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 12,
+                    border: `1px solid ${theme.border}`,
+                    background: theme.bg,
+                    color: theme.text,
+                    fontSize: 20,
+                    cursor: "pointer",
+                  }}
+                >
+                  ›
+                </button>
               </div>
-              <h3 className="fraunces" style={{ fontSize: 18 }}>
-                Historial en construcción
-              </h3>
-              <p style={{ fontSize: 13, opacity: 0.6, marginTop: 8, maxWidth: 260, lineHeight: 1.5 }}>
-                Aquí verás tus ciclos pasados, duración promedio y patrones. Versión final estable v1.0
-              </p>
-              <div className="mt-6 grid grid-cols-3 gap-3 w-full max-w-[320px]">
-                {[
-                  { k: "28 días", v: "Promedio" },
-                  { k: "5 días", v: "Periodo" },
-                  { k: "3", v: "Ciclos" },
-                ].map((s) => (
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, 1fr)",
+                  gap: 5,
+                  marginBottom: 7,
+                }}
+              >
+                {["L", "M", "X", "J", "V", "S", "D"].map((day) => (
                   <div
-                    key={s.v}
+                    key={day}
                     style={{
-                      backgroundColor: theme.gridBg,
-                      border: `1px solid ${theme.border}`,
-                      borderRadius: 14,
-                      padding: "10px 8px",
+                      textAlign: "center",
+                      fontSize: 10,
+                      color: theme.muted,
+                      fontWeight: 700,
+                      padding: "5px 0",
                     }}
                   >
-                    <div style={{ fontSize: 14, fontWeight: 700 }} className="fraunces">
-                      {s.k}
-                    </div>
-                    <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2 }}>{s.v}</div>
+                    {day}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, 1fr)",
+                  gap: 5,
+                }}
+              >
+                {calendarDays.map((date, index) => {
+                  if (!date) {
+                    return <div key={`empty-${index}`} />;
+                  }
+
+                  const type = getDayType(date);
+                  const todayCell = isSameDay(date, today);
+
+                  let background = theme.bg;
+                  let border = theme.border;
+                  let color = theme.text;
+
+                  if (type === "period") {
+                    background = theme.periodBg;
+                  }
+
+                  if (type === "predicted") {
+                    background = theme.periodBg;
+                    border = theme.aquaDark;
+                  }
+
+                  if (type === "fertile") {
+                    background = theme.fertileBg;
+                  }
+
+                  if (type === "ovulation") {
+                    background = theme.ovulationBg;
+                    border = theme.aqua;
+                  }
+
+                  if (todayCell) {
+                    background = theme.todayBg;
+                    color = theme.todayText;
+                    border = theme.todayBg;
+                  }
+
+                  return (
+                    <div
+                      key={date.toISOString()}
+                      style={{
+                        aspectRatio: "1",
+                        minWidth: 0,
+                        borderRadius: 12,
+                        background,
+                        border: `1px ${
+                          type === "predicted" ? "dashed" : "solid"
+                        } ${border}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color,
+                        fontSize: 12,
+                        fontWeight: todayCell ? 800 : 500,
+                      }}
+                      title={`${date.toLocaleDateString("es-ES")}`}
+                    >
+                      {date.getDate()}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 12,
+                  marginTop: 20,
+                  paddingTop: 16,
+                  borderTop: `1px solid ${theme.border}`,
+                }}
+              >
+                {[
+                  { label: "Periodo", bg: theme.periodBg },
+                  { label: "Predicción", bg: theme.periodBg },
+                  { label: "Fértil", bg: theme.fertileBg },
+                  { label: "Ovulación", bg: theme.ovulationBg },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 11,
+                        height: 11,
+                        borderRadius: 4,
+                        background: item.bg,
+                        border: `1px solid ${theme.border}`,
+                      }}
+                    />
+
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: theme.muted,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {tab === "historial" && (
+            <section
+              style={{
+                background: theme.card,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 26,
+                padding: isMobile ? 24 : 32,
+              }}
+            >
+              <h2
+                className="fraunces"
+                style={{
+                  fontSize: 26,
+                  margin: 0,
+                }}
+              >
+                Historial
+              </h2>
+
+              <p
+                style={{
+                  color: theme.muted,
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  marginTop: 8,
+                }}
+              >
+                Aquí irán apareciendo tus registros a medida que uses MyM.
+              </p>
+
+              <div
+                style={{
+                  marginTop: 22,
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: 18,
+                  padding: 18,
+                  background: theme.soft,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: theme.muted,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  Primer registro
+                </div>
+
+                <div
+                  className="fraunces"
+                  style={{
+                    fontSize: 20,
+                    marginTop: 7,
+                  }}
+                >
+                  {periodStart.toLocaleDateString("es-ES", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: theme.muted,
+                    marginTop: 5,
+                  }}
+                >
+                  Periodo registrado · {profile.periodLength} días habituales
+                </div>
+              </div>
+
+              <p
+                style={{
+                  fontSize: 11,
+                  color: theme.muted,
+                  lineHeight: 1.5,
+                  marginTop: 18,
+                }}
+              >
+                MyM irá construyendo tu historial con tus próximos registros.
+              </p>
+            </section>
+          )}
+        </main>
+
+        <footer
           style={{
-            fontSize: 9,
-            letterSpacing: "0.12em",
-            opacity: 0.35,
             textAlign: "center",
-            padding: "24px 0 8px",
+            color: theme.muted,
+            opacity: 0.7,
+            fontSize: 9,
+            letterSpacing: "0.1em",
+            marginTop: 24,
+            paddingBottom: 8,
             textTransform: "uppercase",
-            fontWeight: 500,
           }}
         >
           MyM for LilibetSP. courtesy of geeskit.com 2026
-        </div>
+        </footer>
       </div>
     </div>
   );
-}
+  }
