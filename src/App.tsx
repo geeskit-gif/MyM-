@@ -786,7 +786,7 @@ export default function App() {
               textTransform: "uppercase",
             }}
           >
-            MyM for LilibetSP. courtesy of geeskit.com 2026
+            MyM -to Lilibet & Mariana courtesy of geeskit.com 2026
           </footer>
         </main>
       </div>
@@ -1658,7 +1658,7 @@ export default function App() {
             textTransform: "uppercase",
           }}
         >
-          MyM for LilibetSP. courtesy of geeskit.com 2026
+          MyM -to Lilibet & Mariana courtesy of geeskit.com 2026
         </footer>
       </div>
     </div>
