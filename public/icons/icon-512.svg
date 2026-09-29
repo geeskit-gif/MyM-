@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MyM logo">
+  <defs>
+    <linearGradient id="goldA" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#f7e7c1"/>
+      <stop offset="18%" stop-color="#d5b36d"/>
+      <stop offset="42%" stop-color="#f4d39b"/>
+      <stop offset="54%" stop-color="#a97d42"/>
+      <stop offset="75%" stop-color="#f5d9a2"/>
+      <stop offset="100%" stop-color="#8b6835"/>
+    </linearGradient>
+    <linearGradient id="silverA" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#dfeaf3"/>
+      <stop offset="16%" stop-color="#9caab6"/>
+      <stop offset="35%" stop-color="#edf3f7"/>
+      <stop offset="52%" stop-color="#5f6e7b"/>
+      <stop offset="70%" stop-color="#dfeaf3"/>
+      <stop offset="100%" stop-color="#697f8d"/>
+    </linearGradient>
+    <linearGradient id="silverB" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#edf5f8"/>
+      <stop offset="20%" stop-color="#a5b8c3"/>
+      <stop offset="50%" stop-color="#d9e5ee"/>
+      <stop offset="80%" stop-color="#62757d"/>
+      <stop offset="100%" stop-color="#cedfe8"/>
+    </linearGradient>
+    <linearGradient id="petalA" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#dfeaf3"/>
+      <stop offset="32%" stop-color="#8aa9c6"/>
+      <stop offset="60%" stop-color="#dfeaf3"/>
+      <stop offset="100%" stop-color="#496d86"/>
+    </linearGradient>
+    <linearGradient id="petalB" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#cfe8ff"/>
+      <stop offset="10%" stop-color="#9bb7cf"/>
+      <stop offset="56%" stop-color="#dfeaf3"/>
+      <stop offset="100%" stop-color="#4d6478"/>
+    </linearGradient>
+    <linearGradient id="ruby" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff4a62"/>
+      <stop offset="18%" stop-color="#c9002f"/>
+      <stop offset="38%" stop-color="#ff7d7d"/>
+      <stop offset="62%" stop-color="#a3001d"/>
+      <stop offset="100%" stop-color="#5f0011"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <path d="M120 256c0-41 32-76 72-87 52-14 145-18 164 34 12 31-4 59-20 79-53 66-185 62-216-26Z" fill="url(#silverA)" opacity="0.88"/>
+    <path d="M107 260c18-61 78-104 152-104 52 0 100 20 126 59-22-8-45-13-74-13-58 0-111 18-156 58-13 12-29 29-48 0Z" fill="url(#goldA)" opacity="0.9"/>
+    <path d="M86 252c30-58 89-105 151-112 54-7 90 10 129 41-25 6-46 19-62 34-53 52-103 68-175 37-12-4-30 0-43 0Z" fill="url(#goldA)" opacity="0.96"/>
+    <path d="M146 184c18-48 86-83 153-72 38 6 78 35 87 66-22-17-47-28-75-31-55-6-107 13-165 37Z" fill="url(#silverA)" opacity="0.8"/>
+    <path d="M185 298c41-18 69-10 88 4 26 19 21 50 9 71-38 59-124 76-170 31-16-16-18-38-5-58 17-19 48-37 78-48Z" fill="url(#goldA)" opacity="0.95"/>
+    <path d="M320 195c29-39 67-68 114-79 26-6 48 0 58 15 10 17-3 36-28 53-35 24-95 31-144 11Z" fill="url(#goldA)" opacity="0.96"/>
+    <path d="M190 200c26 14 30 31 32 52 0 15-1 27-12 40 35 20 74 18 112 2 31-13 52-39 57-70-14 20-35 32-65 38-42 8-83 0-124-62Z" fill="url(#silverB)" opacity="0.86"/>
+    <path d="M259 181c-69 0-115 64-109 138 2 19 8 37 17 51 26 34 83 65 126 65 42 0 88-17 120-48 44-42 45-84 23-126-17-33-58-80-177-80Z" fill="none" stroke="url(#silverB)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+    <g transform="translate(155 90)">
+      <path d="M25 195c20-48 58-86 111-97 33-7 58-1 82 10-21 7-36 17-47 29-34 36-53 86-36 129 16 42 48 68 86 82-19 11-40 17-64 17-57 0-118-42-132-170Z" fill="url(#petalA)"/>
+      <path d="M78 170c-39 0-58 18-74 52 28-11 47-8 71 5 23 13 38 35 47 65-12-13-29-24-53-31-41-12-60-17-67-40 4-17 31-51 76-51Z" fill="url(#petalB)" opacity="0.7"/>
+      <path d="M133 96c10 42 77 56 103 27 22-25 17-57-9-80-27-24-59-34-90-30-19 3-41 10-58 27 15 9 36 22 54 56Z" fill="url(#petalA)"/>
+      <path d="M209 152c19 41 34 75 35 127 1 41-13 72-35 91 31-16 56-38 73-65 18-28 27-61 26-98-11 17-27 31-52 39-14 5-30 8-47 8Z" fill="url(#petalB)" opacity="0.8"/>
+      <path d="M224 111c-9 35 18 82 62 115 16 12 38 22 63 19-12 15-28 31-52 40-31 12-72 15-104 1-29-13-52-34-66-65 20-12 36-27 52-51 15-25 22-41 45-59Z" fill="url(#petalA)" opacity="0.78"/>
+    </g>
+    <g transform="translate(150 115)">
+      <path d="M98 186c-29-41-36-100-14-130 20-29 52-41 86-35 60 11 102 76 99 131-2 52-42 87-95 97-23 6-49 0-76-63Z" fill="url(#silverB)" opacity="0.9"/>
+      <path d="M151 87c-28 18-50 55-56 84-8 41 8 81 39 103 35 25 90 26 124 1 39-29 55-82 36-129-14-38-53-70-99-83-18-5-29-7-44 24Z" fill="url(#ruby)" stroke="#5b0d1d" stroke-width="7"/>
+      <path d="M123 68l34 96 19-61 74 72-24-90 83 52-80-117-49 58-12-52-45 42Z" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+      <path d="M151 158l32-49 28 63 46-72-19 84 61-26-46 71-46-46-32 42-34-62Z" fill="rgba(255,255,255,0.12)"/>
+      <path d="M182 211c-19-12-35-30-40-50s3-42 18-62" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <path d="M108 283c24 104 100 146 192 146 77 0 139-43 175-110-34 21-64 31-112 36-66 7-144-2-255-72Z" fill="url(#silverA)" opacity="0.62"/>
+  </g>
+</svg>
