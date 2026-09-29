@@ -7,6 +7,7 @@ type Profile = {
   periodStart: string;
   cycleLength: number;
   periodLength: number;
+  periodHistory: string[];
 };
 
 type DayType = "normal" | "period" | "predicted" | "fertile" | "ovulation";
@@ -46,7 +47,33 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(() => {
     try {
       const saved = localStorage.getItem(PROFILE_KEY);
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+
+      const parsed = JSON.parse(saved) as Partial<Profile>;
+
+      const periodHistory =
+        Array.isArray(parsed.periodHistory) && parsed.periodHistory.length > 0
+          ? parsed.periodHistory.filter(
+              (value): value is string => typeof value === "string" && Boolean(value)
+            )
+          : parsed.periodStart
+          ? [parsed.periodStart]
+          : [];
+
+      if (!parsed.name || !parsed.periodStart || periodHistory.length === 0) {
+        return null;
+      }
+
+      const migratedProfile: Profile = {
+        name: parsed.name,
+        periodStart: parsed.periodStart,
+        cycleLength: Number(parsed.cycleLength) || 28,
+        periodLength: Number(parsed.periodLength) || 5,
+        periodHistory: Array.from(new Set(periodHistory)).sort(),
+      };
+
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(migratedProfile));
+      return migratedProfile;
     } catch {
       return null;
     }
@@ -215,6 +242,7 @@ export default function App() {
       periodStart: lastPeriod,
       cycleLength: Number(cycleLength),
       periodLength: Number(periodLength),
+      periodHistory: [lastPeriod],
     };
 
     localStorage.setItem(PROFILE_KEY, JSON.stringify(newProfile));
@@ -228,9 +256,15 @@ export default function App() {
   const registerNewPeriod = () => {
     if (!profile) return;
 
-    const updatedProfile = {
+    const todayInput = dateToInput(today);
+    const history = Array.from(
+      new Set([...(profile.periodHistory || [profile.periodStart]), todayInput])
+    ).sort();
+
+    const updatedProfile: Profile = {
       ...profile,
-      periodStart: dateToInput(today),
+      periodStart: todayInput,
+      periodHistory: history,
     };
 
     localStorage.setItem(PROFILE_KEY, JSON.stringify(updatedProfile));
@@ -1526,53 +1560,76 @@ export default function App() {
                   marginTop: 8,
                 }}
               >
-                Aquí irán apareciendo tus registros a medida que uses MyM.
+                Aquí aparecen tus periodos registrados en MyM.
               </p>
 
               <div
                 style={{
+                  display: "grid",
+                  gap: 10,
                   marginTop: 22,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 18,
-                  padding: 18,
-                  background: theme.soft,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: theme.muted,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                  }}
-                >
-                  Primer registro
-                </div>
+                {profile.periodHistory
+                  .slice()
+                  .sort((a, b) => b.localeCompare(a))
+                  .map((dateValue, index, history) => {
+                    const date = inputToDate(dateValue);
+                    const previousValue = history[index + 1];
+                    const cycleDays = previousValue
+                      ? daysBetween(date, inputToDate(previousValue))
+                      : null;
 
-                <div
-                  className="fraunces"
-                  style={{
-                    fontSize: 20,
-                    marginTop: 7,
-                  }}
-                >
-                  {periodStart.toLocaleDateString("es-ES", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
+                    return (
+                      <div
+                        key={dateValue}
+                        style={{
+                          border: `1px solid ${theme.border}`,
+                          borderRadius: 18,
+                          padding: 16,
+                          background: index === 0 ? theme.soft : theme.card,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: theme.muted,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.08em",
+                          }}
+                        >
+                          {index === 0 ? "Periodo más reciente" : "Periodo registrado"}
+                        </div>
+
+                        <div
+                          className="fraunces"
+                          style={{
+                            fontSize: 20,
+                            marginTop: 6,
+                          }}
+                        >
+                          {date.toLocaleDateString("es-ES", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </div>
+
+                        {cycleDays && (
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: theme.muted,
+                              marginTop: 5,
+                            }}
+                          >
+                            Ciclo anterior: {cycleDays} días
+                          </div>
+                        )}
+                      </div>
+                    );
                   })}
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: theme.muted,
-                    marginTop: 5,
-                  }}
-                >
-                  Periodo registrado · {profile.periodLength} días habituales
-                </div>
               </div>
 
               <p
@@ -1583,7 +1640,7 @@ export default function App() {
                   marginTop: 18,
                 }}
               >
-                MyM irá construyendo tu historial con tus próximos registros.
+                Cada vez que comience tu menstruación, pulsa “Registrar que comenzó mi periodo hoy”. MyM guardará la fecha sin borrar las anteriores.
               </p>
             </section>
           )}
