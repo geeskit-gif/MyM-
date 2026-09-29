@@ -690,32 +690,38 @@ export default function App() {
               </div>
 
               <button
-                onClick={handleStart}
-                disabled={
-                  !name.trim() ||
-                  !lastPeriod ||
-                  inputToDate(lastPeriod).getTime() > today.getTime()
-                }
+                onClick={() => {
+                  if (!name.trim()) {
+                    const field = document.querySelector('input[autocomplete="name"]') as HTMLInputElement | null;
+                    field?.focus();
+                    return;
+                  }
+
+                  if (!lastPeriod) {
+                    const field = document.querySelector('input[type="date"]') as HTMLInputElement | null;
+                    field?.focus();
+                    return;
+                  }
+
+                  if (inputToDate(lastPeriod).getTime() > today.getTime()) {
+                    const field = document.querySelector('input[type="date"]') as HTMLInputElement | null;
+                    field?.focus();
+                    return;
+                  }
+
+                  handleStart();
+                }}
                 style={{
                   marginTop: 4,
                   width: "100%",
                   height: 54,
                   borderRadius: 16,
                   border: "none",
-                  background:
-                    !name.trim() || !lastPeriod
-                      ? theme.border
-                      : theme.aqua,
-                  color:
-                    !name.trim() || !lastPeriod
-                      ? theme.muted
-                      : "#173437",
+                  background: theme.aqua,
+                  color: "#173437",
                   fontSize: 15,
                   fontWeight: 700,
-                  cursor:
-                    !name.trim() || !lastPeriod
-                      ? "not-allowed"
-                      : "pointer",
+                  cursor: "pointer",
                 }}
               >
                 Comenzar
