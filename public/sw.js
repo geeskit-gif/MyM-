@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mym-v1-2026';
+const CACHE_NAME = 'mym-v2-2026-logo';
 const ASSETS = ['/','/index.html','/manifest.json','/logo.png','/icons/icon-192.png','/icons/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -10,11 +10,5 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-      const clone = resp.clone();
-      caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-      return resp;
-    }).catch(()=>caches.match('/index.html')))
-  );
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
 });
