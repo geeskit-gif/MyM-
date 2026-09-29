@@ -270,6 +270,7 @@ export default function App() {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(updatedProfile));
     setProfile(updatedProfile);
     setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+    setNotificationMessage("Periodo registrado ✓");
   };
 
   const changeMonth = (delta: number) => {
