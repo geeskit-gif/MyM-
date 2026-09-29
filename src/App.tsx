@@ -328,23 +328,25 @@ export default function App() {
     : 0;
 
   const toggleReminder = async (id: string) => {
+    const willEnable = !reminders[id];
+    const next = { ...reminders, [id]: willEnable };
+
+    // Change the switch immediately so the tap always gives visual feedback.
+    setReminders(next);
+    localStorage.setItem(REMINDERS_KEY, JSON.stringify(next));
+
     if (id === "periodo") {
-      const willEnable = !reminders.periodo;
       if (willEnable) {
         try {
           await requestOneSignalPermission();
           setNotificationMessage("Aviso de periodo activado.");
         } catch {
-          setNotificationMessage("No pudimos activar las notificaciones. Inténtalo de nuevo.");
-          return;
+          setNotificationMessage("No pudimos activar las notificaciones. Puedes volver a intentarlo.");
         }
       } else {
         setNotificationMessage("Aviso de periodo desactivado.");
       }
     }
-    const next = { ...reminders, [id]: !reminders[id] };
-    setReminders(next);
-    localStorage.setItem(REMINDERS_KEY, JSON.stringify(next));
   };
 
   const handleInstall = async () => {
